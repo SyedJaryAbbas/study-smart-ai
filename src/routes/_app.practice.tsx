@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sparkles, Loader2, CheckCircle2, XCircle, ArrowRight, RotateCcw, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { isUnlimited, remaining } from "@/lib/plan";
 
 export const Route = createFileRoute("/_app/practice")({ component: PracticePage });
 
