@@ -168,8 +168,13 @@ function PracticePage() {
       <div>
         <PageHeader
           title="Practice Generator"
-          subtitle="Turn your notes into an interactive practice session."
+          subtitle={
+            isUnlimited(kindLimit)
+              ? "Turn your notes into an interactive practice session."
+              : `Free plan: ${kindUsed}/${kindLimit} ${kind} questions used this month.`
+          }
         />
+        <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} reason={upgradeReason} />
         <Card className="p-6">
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
