@@ -5,7 +5,6 @@ import {
   ClipboardList,
   GraduationCap,
   Sparkles,
-  MessageCircle,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -19,7 +18,6 @@ const items = [
   { to: "/assignments", label: "Assignments", icon: ClipboardList },
   { to: "/exams", label: "Exams", icon: GraduationCap },
   { to: "/practice", label: "Practice", icon: Sparkles },
-  { to: "/assistant", label: "AI Assistant", icon: MessageCircle },
 ] as const;
 
 export function AppSidebar() {

@@ -17,7 +17,6 @@ import { Route as AppPracticeRouteImport } from './routes/_app.practice'
 import { Route as AppNotesRouteImport } from './routes/_app.notes'
 import { Route as AppExamsRouteImport } from './routes/_app.exams'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppAssistantRouteImport } from './routes/_app.assistant'
 import { Route as AppAssignmentsRouteImport } from './routes/_app.assignments'
 
 const AuthRoute = AuthRouteImport.update({
@@ -59,11 +58,6 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAssistantRoute = AppAssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppAssignmentsRoute = AppAssignmentsRouteImport.update({
   id: '/assignments',
   path: '/assignments',
@@ -74,7 +68,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/assignments': typeof AppAssignmentsRoute
-  '/assistant': typeof AppAssistantRoute
   '/dashboard': typeof AppDashboardRoute
   '/exams': typeof AppExamsRoute
   '/notes': typeof AppNotesRoute
@@ -85,7 +78,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/assignments': typeof AppAssignmentsRoute
-  '/assistant': typeof AppAssistantRoute
   '/dashboard': typeof AppDashboardRoute
   '/exams': typeof AppExamsRoute
   '/notes': typeof AppNotesRoute
@@ -98,7 +90,6 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/_app/assignments': typeof AppAssignmentsRoute
-  '/_app/assistant': typeof AppAssistantRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/exams': typeof AppExamsRoute
   '/_app/notes': typeof AppNotesRoute
@@ -111,7 +102,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/assignments'
-    | '/assistant'
     | '/dashboard'
     | '/exams'
     | '/notes'
@@ -122,7 +112,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/assignments'
-    | '/assistant'
     | '/dashboard'
     | '/exams'
     | '/notes'
@@ -134,7 +123,6 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth'
     | '/_app/assignments'
-    | '/_app/assistant'
     | '/_app/dashboard'
     | '/_app/exams'
     | '/_app/notes'
@@ -206,13 +194,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/assistant': {
-      id: '/_app/assistant'
-      path: '/assistant'
-      fullPath: '/assistant'
-      preLoaderRoute: typeof AppAssistantRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/assignments': {
       id: '/_app/assignments'
       path: '/assignments'
@@ -225,7 +206,6 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAssignmentsRoute: typeof AppAssignmentsRoute
-  AppAssistantRoute: typeof AppAssistantRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppExamsRoute: typeof AppExamsRoute
   AppNotesRoute: typeof AppNotesRoute
@@ -235,7 +215,6 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAssignmentsRoute: AppAssignmentsRoute,
-  AppAssistantRoute: AppAssistantRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppExamsRoute: AppExamsRoute,
   AppNotesRoute: AppNotesRoute,
@@ -253,3 +232,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

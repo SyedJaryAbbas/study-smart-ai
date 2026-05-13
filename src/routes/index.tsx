@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, ClipboardList, GraduationCap, MessageCircle, FileText, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Sparkles, ClipboardList, GraduationCap, FileText, ArrowRight, CheckCircle2, BookOpen } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
@@ -8,7 +8,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "StudyOwl — Know what to study, when to study" },
-      { name: "description", content: "AI-powered academic management for university students. Track assignments, exams, generate practice questions, and chat with your study assistant." },
+      { name: "description", content: "AI-powered academic management for university students. Track assignments, exams, and turn your notes into interactive practice sessions." },
     ],
   }),
 });
@@ -17,8 +17,8 @@ const features = [
   { icon: FileText, title: "Smart Notes", desc: "Upload PDFs, slides, and notes — organized by course and instantly searchable." },
   { icon: ClipboardList, title: "Assignment Tracker", desc: "Due-date countdowns and AI suggestions for when to start each task." },
   { icon: GraduationCap, title: "Exam Planner", desc: "Turn syllabus chapters into a daily revision schedule that fits your timeline." },
-  { icon: Sparkles, title: "AI Practice", desc: "Generate MCQs, short and long questions from your own notes." },
-  { icon: MessageCircle, title: "AI Tutor", desc: "Ask anything — concepts, problems, study advice. Always on, always patient." },
+  { icon: Sparkles, title: "AI Practice", desc: "Generate MCQs, short and long questions from your own notes — and get instant feedback on every answer." },
+  { icon: BookOpen, title: "Study Planner", desc: "Daily revision targets that adapt to your timeline so nothing slips before exam day." },
 ];
 
 function Landing() {

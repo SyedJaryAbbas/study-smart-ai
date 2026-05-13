@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, FileText, Search, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { extractText } from "@/lib/extract-text";
 
 export const Route = createFileRoute("/_app/notes")({ component: NotesPage });
 
@@ -122,7 +123,14 @@ function NoteForm({ courses, onDone }: { courses: any[]; onDone: () => void }) {
     try {
       let file_url: string | null = null;
       let file_type: string | null = null;
+      let content: string | null = null;
       if (file) {
+        // Extract text first so AI practice uses the actual content, not the filename.
+        const extracted = await extractText(file);
+        content = extracted || null;
+        if (!extracted) {
+          toast.message("Couldn't auto-extract text from this file — you can paste it in the description.");
+        }
         const path = `${user!.id}/${Date.now()}-${file.name}`;
         const { error } = await supabase.storage.from("student-files").upload(path, file);
         if (error) throw error;
@@ -137,6 +145,7 @@ function NoteForm({ courses, onDone }: { courses: any[]; onDone: () => void }) {
         course_id: courseId || null,
         file_url,
         file_type,
+        content,
       });
       if (error) throw error;
       toast.success("Note saved");
