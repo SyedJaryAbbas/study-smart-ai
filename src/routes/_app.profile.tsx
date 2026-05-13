@@ -138,17 +138,32 @@ function ProfilePage() {
             ))}
           </div>
 
+          {courseBlocked && (
+            <p className="text-xs text-muted-foreground mb-2">
+              Free plan allows {courseLimit} courses.{" "}
+              <button onClick={() => setUpgradeOpen(true)} className="text-primary font-medium hover:underline">
+                Upgrade for unlimited →
+              </button>
+            </p>
+          )}
+
           <form onSubmit={(e) => { e.preventDefault(); addCourse.mutate(); }} className="space-y-2">
-            <Input placeholder="Course name (e.g. Linear Algebra)" value={newCourse} onChange={(e) => setNewCourse(e.target.value)} />
+            <Input placeholder="Course name (e.g. Linear Algebra)" value={newCourse} onChange={(e) => setNewCourse(e.target.value)} disabled={courseBlocked} />
             <div className="flex gap-2">
-              <Input placeholder="Code (optional)" value={newCode} onChange={(e) => setNewCode(e.target.value)} />
-              <Button type="submit" variant="outline">
+              <Input placeholder="Code (optional)" value={newCode} onChange={(e) => setNewCode(e.target.value)} disabled={courseBlocked} />
+              <Button type="submit" variant="outline" disabled={courseBlocked}>
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
             </div>
           </form>
         </Card>
       </div>
+
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        reason={`The Free plan is capped at ${courseLimit} courses. Premium gives you unlimited courses, notes, and practice.`}
+      />
     </div>
   );
 }
