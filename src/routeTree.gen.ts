@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppPricingRouteImport } from './routes/_app.pricing'
 import { Route as AppPracticeRouteImport } from './routes/_app.practice'
 import { Route as AppNotesRouteImport } from './routes/_app.notes'
 import { Route as AppExamsRouteImport } from './routes/_app.exams'
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPricingRoute = AppPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPracticeRoute = AppPracticeRouteImport.update({
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/exams': typeof AppExamsRoute
   '/notes': typeof AppNotesRoute
   '/practice': typeof AppPracticeRoute
+  '/pricing': typeof AppPricingRoute
   '/profile': typeof AppProfileRoute
 }
 export interface FileRoutesByTo {
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/exams': typeof AppExamsRoute
   '/notes': typeof AppNotesRoute
   '/practice': typeof AppPracticeRoute
+  '/pricing': typeof AppPricingRoute
   '/profile': typeof AppProfileRoute
 }
 export interface FileRoutesById {
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_app/exams': typeof AppExamsRoute
   '/_app/notes': typeof AppNotesRoute
   '/_app/practice': typeof AppPracticeRoute
+  '/_app/pricing': typeof AppPricingRoute
   '/_app/profile': typeof AppProfileRoute
 }
 export interface FileRouteTypes {
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/notes'
     | '/practice'
+    | '/pricing'
     | '/profile'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/notes'
     | '/practice'
+    | '/pricing'
     | '/profile'
   id:
     | '__root__'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_app/exams'
     | '/_app/notes'
     | '/_app/practice'
+    | '/_app/pricing'
     | '/_app/profile'
   fileRoutesById: FileRoutesById
 }
@@ -164,6 +176,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pricing': {
+      id: '/_app/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof AppPricingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/practice': {
@@ -210,6 +229,7 @@ interface AppRouteChildren {
   AppExamsRoute: typeof AppExamsRoute
   AppNotesRoute: typeof AppNotesRoute
   AppPracticeRoute: typeof AppPracticeRoute
+  AppPricingRoute: typeof AppPricingRoute
   AppProfileRoute: typeof AppProfileRoute
 }
 
@@ -219,6 +239,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppExamsRoute: AppExamsRoute,
   AppNotesRoute: AppNotesRoute,
   AppPracticeRoute: AppPracticeRoute,
+  AppPricingRoute: AppPricingRoute,
   AppProfileRoute: AppProfileRoute,
 }
 
@@ -232,3 +253,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
