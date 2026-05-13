@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Plus, X, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { isUnlimited } from "@/lib/plan";
 
 export const Route = createFileRoute("/_app/profile")({ component: ProfilePage });
 
@@ -22,6 +25,8 @@ function ProfilePage() {
   const [semester, setSemester] = useState("");
   const [newCourse, setNewCourse] = useState("");
   const [newCode, setNewCode] = useState("");
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { limits, refresh } = useSubscription();
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -59,18 +64,26 @@ function ProfilePage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const courseLimit = limits.courses;
+  const courseBlocked = !isUnlimited(courseLimit) && courses.length >= courseLimit;
+
   const addCourse = useMutation({
     mutationFn: async () => {
       if (!newCourse.trim()) return;
+      if (courseBlocked) {
+        setUpgradeOpen(true);
+        throw new Error("Course limit reached on Free plan.");
+      }
       const { error } = await supabase.from("courses").insert({ user_id: user!.id, name: newCourse.trim(), code: newCode.trim() || null });
       if (error) throw error;
     },
-    onSuccess: () => { setNewCourse(""); setNewCode(""); qc.invalidateQueries({ queryKey: ["courses"] }); },
+    onSuccess: () => { setNewCourse(""); setNewCode(""); qc.invalidateQueries({ queryKey: ["courses"] }); refresh(); },
+    onError: (e: any) => { if (!courseBlocked) toast.error(e.message); },
   });
 
   const removeCourse = useMutation({
     mutationFn: async (id: string) => { await supabase.from("courses").delete().eq("id", id); },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["courses"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["courses"] }); refresh(); },
   });
 
   return (
