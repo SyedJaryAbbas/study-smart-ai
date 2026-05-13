@@ -32,11 +32,6 @@ function NotesPage() {
   const used = usage?.notesThisMonth ?? 0;
   const blocked = !isUnlimited(limit) && used >= limit;
 
-  const tryOpen = () => {
-    if (blocked) setUpgradeOpen(true);
-    else setOpen(true);
-  };
-
   const { data: courses = [] } = useQuery({
     queryKey: ["courses", user?.id],
     enabled: !!user,
