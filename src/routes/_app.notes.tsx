@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, FileText, Search, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { extractText } from "@/lib/extract-text";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { isUnlimited } from "@/lib/plan";
 
 export const Route = createFileRoute("/_app/notes")({ component: NotesPage });
 
@@ -22,6 +25,12 @@ function NotesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { data: usage, limits, refresh } = useSubscription();
+
+  const limit = limits.notesPerMonth;
+  const used = usage?.notesThisMonth ?? 0;
+  const blocked = !isUnlimited(limit) && used >= limit;
 
   const { data: courses = [] } = useQuery({
     queryKey: ["courses", user?.id],
@@ -55,21 +64,60 @@ function NotesPage() {
     <div>
       <PageHeader
         title="Notes"
-        subtitle="Upload and organize your lecture notes by course."
+        subtitle={
+          isUnlimited(limit)
+            ? "Upload and organize your lecture notes by course."
+            : `Upload and organize your lecture notes by course. ${used}/${limit} uploads used this month.`
+        }
         action={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-soft">
-                <Plus className="h-4 w-4 mr-1" /> New note
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Upload a note</DialogTitle></DialogHeader>
-              <NoteForm courses={courses} onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["notes"] }); }} />
-            </DialogContent>
-          </Dialog>
+          <>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  onClick={(e) => {
+                    if (blocked) {
+                      e.preventDefault();
+                      setUpgradeOpen(true);
+                    }
+                  }}
+                  className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-soft"
+                >
+                  <Plus className="h-4 w-4 mr-1" /> New note
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Upload a note</DialogTitle></DialogHeader>
+                <NoteForm
+                  courses={courses}
+                  onDone={() => {
+                    setOpen(false);
+                    qc.invalidateQueries({ queryKey: ["notes"] });
+                    refresh();
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+            <UpgradeDialog
+              open={upgradeOpen}
+              onOpenChange={setUpgradeOpen}
+              reason={`You've used all ${limit} free uploads this month. Upgrade for unlimited notes.`}
+            />
+          </>
         }
       />
+
+      {!isUnlimited(limit) && used >= limit - 1 && (
+        <Card className="p-4 mb-5 border-primary/40 bg-accent">
+          <p className="text-sm">
+            {blocked
+              ? "You've hit the free upload limit for this month."
+              : "Heads up — you're on your last free upload this month."}{" "}
+            <button onClick={() => setUpgradeOpen(true)} className="text-primary font-medium hover:underline">
+              See plans →
+            </button>
+          </p>
+        </Card>
+      )}
 
       <div className="relative mb-5">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

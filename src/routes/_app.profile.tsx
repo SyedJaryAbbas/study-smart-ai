@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Plus, X, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { isUnlimited } from "@/lib/plan";
 
 export const Route = createFileRoute("/_app/profile")({ component: ProfilePage });
 
@@ -22,6 +25,8 @@ function ProfilePage() {
   const [semester, setSemester] = useState("");
   const [newCourse, setNewCourse] = useState("");
   const [newCode, setNewCode] = useState("");
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { limits, refresh } = useSubscription();
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -59,18 +64,26 @@ function ProfilePage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const courseLimit = limits.courses;
+  const courseBlocked = !isUnlimited(courseLimit) && courses.length >= courseLimit;
+
   const addCourse = useMutation({
     mutationFn: async () => {
       if (!newCourse.trim()) return;
+      if (courseBlocked) {
+        setUpgradeOpen(true);
+        throw new Error("Course limit reached on Free plan.");
+      }
       const { error } = await supabase.from("courses").insert({ user_id: user!.id, name: newCourse.trim(), code: newCode.trim() || null });
       if (error) throw error;
     },
-    onSuccess: () => { setNewCourse(""); setNewCode(""); qc.invalidateQueries({ queryKey: ["courses"] }); },
+    onSuccess: () => { setNewCourse(""); setNewCode(""); qc.invalidateQueries({ queryKey: ["courses"] }); refresh(); },
+    onError: (e: any) => { if (!courseBlocked) toast.error(e.message); },
   });
 
   const removeCourse = useMutation({
     mutationFn: async (id: string) => { await supabase.from("courses").delete().eq("id", id); },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["courses"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["courses"] }); refresh(); },
   });
 
   return (
@@ -125,17 +138,32 @@ function ProfilePage() {
             ))}
           </div>
 
+          {courseBlocked && (
+            <p className="text-xs text-muted-foreground mb-2">
+              Free plan allows {courseLimit} courses.{" "}
+              <button onClick={() => setUpgradeOpen(true)} className="text-primary font-medium hover:underline">
+                Upgrade for unlimited →
+              </button>
+            </p>
+          )}
+
           <form onSubmit={(e) => { e.preventDefault(); addCourse.mutate(); }} className="space-y-2">
-            <Input placeholder="Course name (e.g. Linear Algebra)" value={newCourse} onChange={(e) => setNewCourse(e.target.value)} />
+            <Input placeholder="Course name (e.g. Linear Algebra)" value={newCourse} onChange={(e) => setNewCourse(e.target.value)} disabled={courseBlocked} />
             <div className="flex gap-2">
-              <Input placeholder="Code (optional)" value={newCode} onChange={(e) => setNewCode(e.target.value)} />
-              <Button type="submit" variant="outline">
+              <Input placeholder="Code (optional)" value={newCode} onChange={(e) => setNewCode(e.target.value)} disabled={courseBlocked} />
+              <Button type="submit" variant="outline" disabled={courseBlocked}>
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
             </div>
           </form>
         </Card>
       </div>
+
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        reason={`The Free plan is capped at ${courseLimit} courses. Premium gives you unlimited courses, notes, and practice.`}
+      />
     </div>
   );
 }
