@@ -179,6 +179,30 @@ export type Database = {
           },
         ]
       }
+      practice_events: {
+        Row: {
+          count: number
+          created_at: string
+          id: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          id?: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -212,15 +236,52 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          plan: Database["public"]["Enums"]["plan_tier"]
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["plan_tier"]
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["plan_tier"]
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_active_plan: {
+        Args: { uid: string }
+        Returns: Database["public"]["Enums"]["plan_tier"]
+      }
     }
     Enums: {
       exam_type: "quiz" | "midterm" | "final" | "presentation"
+      plan_tier: "free" | "premium_monthly" | "semester_pass"
       priority_level: "low" | "medium" | "high"
     }
     CompositeTypes: {
@@ -350,6 +411,7 @@ export const Constants = {
   public: {
     Enums: {
       exam_type: ["quiz", "midterm", "final", "presentation"],
+      plan_tier: ["free", "premium_monthly", "semester_pass"],
       priority_level: ["low", "medium", "high"],
     },
   },
