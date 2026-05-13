@@ -45,6 +45,14 @@ function PracticePage() {
   const [attempts, setAttempts] = useState<Record<number, Attempt>>({});
   const [current, setCurrent] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
+  const { data: usage, limits, refresh } = useSubscription();
+
+  const kindLimit = limits.practicePerMonth[kind];
+  const kindUsed = usage?.practiceThisMonth[kind] ?? 0;
+  const kindRemaining = remaining(kindLimit, kindUsed);
+  const kindBlocked = kindRemaining <= 0;
 
   const { data: notes = [] } = useQuery({
     queryKey: ["notes-pick", user?.id],
@@ -69,6 +77,16 @@ function PracticePage() {
   };
 
   const generate = async () => {
+    if (kindBlocked) {
+      setUpgradeReason(
+        kindLimit === 0
+          ? `${kind === "long" ? "Long answers" : "Fill-in-the-blanks"} are a Premium feature.`
+          : `You've used your ${kindLimit} free ${kind} questions for this month.`,
+      );
+      setUpgradeOpen(true);
+      return;
+    }
+    const cappedCount = isUnlimited(kindLimit) ? count : Math.min(count, kindRemaining);
     setBusy(true);
     setQuestions([]);
     setAttempts({});
@@ -96,9 +114,17 @@ function PracticePage() {
         setBusy(false);
         return;
       }
-      const data = await aiCall({ mode: "practice", source: material, kind, count });
-      if (data.questions?.length) setQuestions(data.questions);
-      else toast.error("Could not parse AI response. Try again.");
+      const data = await aiCall({ mode: "practice", source: material, kind, count: cappedCount });
+      if (data.questions?.length) {
+        setQuestions(data.questions);
+        // Log usage (count of generated questions)
+        await supabase.from("practice_events").insert({
+          user_id: user!.id,
+          kind,
+          count: data.questions.length,
+        });
+        refresh();
+      } else toast.error("Could not parse AI response. Try again.");
     } catch (e: any) {
       toast.error(e.message);
     } finally {
