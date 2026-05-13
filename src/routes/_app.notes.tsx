@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, FileText, Search, Trash2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { extractText } from "@/lib/extract-text";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { isUnlimited } from "@/lib/plan";
 
 export const Route = createFileRoute("/_app/notes")({ component: NotesPage });
 
@@ -22,6 +25,17 @@ function NotesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { data: usage, limits, refresh } = useSubscription();
+
+  const limit = limits.notesPerMonth;
+  const used = usage?.notesThisMonth ?? 0;
+  const blocked = !isUnlimited(limit) && used >= limit;
+
+  const tryOpen = () => {
+    if (blocked) setUpgradeOpen(true);
+    else setOpen(true);
+  };
 
   const { data: courses = [] } = useQuery({
     queryKey: ["courses", user?.id],
