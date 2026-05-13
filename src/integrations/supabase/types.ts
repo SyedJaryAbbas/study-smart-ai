@@ -274,10 +274,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_active_plan: {
-        Args: { uid: string }
-        Returns: Database["public"]["Enums"]["plan_tier"]
-      }
+      [_ in never]: never
     }
     Enums: {
       exam_type: "quiz" | "midterm" | "final" | "presentation"
