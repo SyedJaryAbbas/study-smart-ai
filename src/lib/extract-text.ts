@@ -28,7 +28,9 @@ export async function extractText(file: File): Promise<string> {
 
 async function extractPdf(file: File): Promise<string> {
   // Dynamic import so pdfjs only loads when needed (and stays out of SSR).
+  // @ts-ignore - no types for the .mjs subpath
   const pdfjs: any = await import("pdfjs-dist/build/pdf.mjs");
+  // @ts-ignore - vite ?url import
   const workerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
