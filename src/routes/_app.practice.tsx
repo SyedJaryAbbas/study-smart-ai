@@ -230,7 +230,8 @@ function PracticePage() {
                   {(notes as any[]).map((n) => (
                     <SelectItem key={n.id} value={n.id}>
                       {n.title}
-                      {n.content ? "" : " (no text)"}
+                      {n.is_edited ? " · edited" : ""}
+                      {!n.content && !n.editable_content ? " (no text)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
