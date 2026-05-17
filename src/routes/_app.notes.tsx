@@ -39,6 +39,7 @@ function NotesPage() {
   const [search, setSearch] = useState("");
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const { data: usage, limits, refresh } = useSubscription();
+  const [viewing, setViewing] = useState<any | null>(null);
 
   const limit = limits.notesPerMonth;
   const used = usage?.notesThisMonth ?? 0;
