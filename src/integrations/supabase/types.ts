@@ -132,15 +132,45 @@ export type Database = {
           },
         ]
       }
+      note_versions: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          note_id: string
+          user_id: string
+          version_number: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          note_id: string
+          user_id: string
+          version_number: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          note_id?: string
+          user_id?: string
+          version_number?: number
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string | null
           course_id: string | null
           created_at: string
           description: string | null
+          editable_content: string | null
           file_type: string | null
           file_url: string | null
           id: string
+          is_edited: boolean
+          last_edited_at: string | null
           title: string
           updated_at: string
           user_id: string
@@ -150,9 +180,12 @@ export type Database = {
           course_id?: string | null
           created_at?: string
           description?: string | null
+          editable_content?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          is_edited?: boolean
+          last_edited_at?: string | null
           title: string
           updated_at?: string
           user_id: string
@@ -162,9 +195,12 @@ export type Database = {
           course_id?: string | null
           created_at?: string
           description?: string | null
+          editable_content?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          is_edited?: boolean
+          last_edited_at?: string | null
           title?: string
           updated_at?: string
           user_id?: string

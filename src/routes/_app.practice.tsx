@@ -58,8 +58,18 @@ function PracticePage() {
     queryKey: ["notes-pick", user?.id],
     enabled: !!user,
     queryFn: async () =>
-      (await supabase.from("notes").select("id, title, description, content")).data ?? [],
+      (await supabase
+        .from("notes")
+        .select("id, title, description, content, editable_content, is_edited")).data ?? [],
   });
+
+  const stripHTML = (s: string) => {
+    if (!s) return "";
+    if (typeof window === "undefined") return s.replace(/<[^>]+>/g, " ");
+    const div = document.createElement("div");
+    div.innerHTML = s;
+    return (div.textContent || div.innerText || "").trim();
+  };
 
   const aiCall = async (body: any) => {
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai`;
@@ -97,7 +107,11 @@ function PracticePage() {
       if (noteId) {
         const n = (notes as any[]).find((x) => x.id === noteId);
         if (n) {
-          const body = (n.content || "").trim();
+          // Prefer the student's edited version; fall back to the originally
+          // extracted text. AI questions should reflect their latest notes.
+          const editedRaw = (n.editable_content || "").trim();
+          const edited = editedRaw ? stripHTML(editedRaw) : "";
+          const body = (edited || (n.content || "")).trim();
           if (!body) {
             toast.error(
               "This note has no extracted text. Re-upload the file or paste content into the topic box.",
@@ -216,7 +230,8 @@ function PracticePage() {
                   {(notes as any[]).map((n) => (
                     <SelectItem key={n.id} value={n.id}>
                       {n.title}
-                      {n.content ? "" : " (no text)"}
+                      {n.is_edited ? " · edited" : ""}
+                      {!n.content && !n.editable_content ? " (no text)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
