@@ -144,28 +144,55 @@ function NotesPage() {
         </Card>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((n: any) => (
-            <Card key={n.id} className="p-5 hover:shadow-elegant transition-all">
-              <div className="flex items-start justify-between mb-2">
-                <div className="h-9 w-9 rounded-lg bg-accent text-accent-foreground flex items-center justify-center">
-                  <FileText className="h-4 w-4" />
+          {filtered.map((n: any) => {
+            const kind = fileKindLabel(n.title, n.file_type);
+            const Icon = kind === "Image" ? ImageIcon : FileText;
+            return (
+              <Card
+                key={n.id}
+                onClick={() => setViewing(n)}
+                className="p-5 hover:shadow-elegant hover:border-primary/40 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="h-9 w-9 rounded-lg bg-gradient-primary text-primary-foreground flex items-center justify-center shadow-soft">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      del.mutate(n.id);
+                    }}
+                    className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
-                <button onClick={() => del.mutate(n.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-              <h3 className="font-semibold text-foreground line-clamp-1">{n.title}</h3>
-              {n.courses && <p className="text-xs text-primary mt-0.5">{n.courses.name}</p>}
-              <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{n.description || "—"}</p>
-              {n.file_url && (
-                <a href={n.file_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                  Open file <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-            </Card>
-          ))}
+                <h3 className="font-semibold text-foreground line-clamp-1">{n.title}</h3>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded bg-accent text-accent-foreground">
+                    {kind}
+                  </span>
+                  {n.courses && <span className="text-xs text-primary">{n.courses.name}</span>}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
+                  {n.description || "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-3">
+                  {format(new Date(n.created_at), "PP")}
+                </p>
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      <NoteViewer
+        note={viewing}
+        open={!!viewing}
+        onOpenChange={(v) => !v && setViewing(null)}
+        onDeleted={() => qc.invalidateQueries({ queryKey: ["notes"] })}
+        onRenamed={() => qc.invalidateQueries({ queryKey: ["notes"] })}
+      />
     </div>
   );
 }
