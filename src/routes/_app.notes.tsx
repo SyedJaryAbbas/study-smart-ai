@@ -11,12 +11,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FileText, Search, Trash2, ExternalLink } from "lucide-react";
+import { Plus, FileText, Image as ImageIcon, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { extractText } from "@/lib/extract-text";
 import { useSubscription } from "@/lib/use-subscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { isUnlimited } from "@/lib/plan";
+import { NoteViewer } from "@/components/NoteViewer";
+import { format } from "date-fns";
+
+function fileKindLabel(title: string, type?: string | null) {
+  const n = (title ?? "").toLowerCase();
+  const t = (type ?? "").toLowerCase();
+  if (t === "application/pdf" || n.endsWith(".pdf")) return "PDF";
+  if (n.endsWith(".docx") || t.includes("wordprocessingml")) return "DOCX";
+  if (t.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/.test(n)) return "Image";
+  if (t.startsWith("text/") || /\.(txt|md|markdown)$/.test(n)) return "Text";
+  return "File";
+}
 
 export const Route = createFileRoute("/_app/notes")({ component: NotesPage });
 
