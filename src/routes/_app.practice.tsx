@@ -107,7 +107,11 @@ function PracticePage() {
       if (noteId) {
         const n = (notes as any[]).find((x) => x.id === noteId);
         if (n) {
-          const body = (n.content || "").trim();
+          // Prefer the student's edited version; fall back to the originally
+          // extracted text. AI questions should reflect their latest notes.
+          const editedRaw = (n.editable_content || "").trim();
+          const edited = editedRaw ? stripHTML(editedRaw) : "";
+          const body = (edited || (n.content || "")).trim();
           if (!body) {
             toast.error(
               "This note has no extracted text. Re-upload the file or paste content into the topic box.",
