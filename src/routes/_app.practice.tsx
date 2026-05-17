@@ -58,8 +58,18 @@ function PracticePage() {
     queryKey: ["notes-pick", user?.id],
     enabled: !!user,
     queryFn: async () =>
-      (await supabase.from("notes").select("id, title, description, content")).data ?? [],
+      (await supabase
+        .from("notes")
+        .select("id, title, description, content, editable_content, is_edited")).data ?? [],
   });
+
+  const stripHTML = (s: string) => {
+    if (!s) return "";
+    if (typeof window === "undefined") return s.replace(/<[^>]+>/g, " ");
+    const div = document.createElement("div");
+    div.innerHTML = s;
+    return (div.textContent || div.innerText || "").trim();
+  };
 
   const aiCall = async (body: any) => {
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai`;
