@@ -192,6 +192,7 @@ function NotesPage() {
         onOpenChange={(v) => !v && setViewing(null)}
         onDeleted={() => qc.invalidateQueries({ queryKey: ["notes"] })}
         onRenamed={() => qc.invalidateQueries({ queryKey: ["notes"] })}
+        onUpdated={() => qc.invalidateQueries({ queryKey: ["notes"] })}
       />
     </div>
   );
