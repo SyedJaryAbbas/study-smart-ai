@@ -41,8 +41,11 @@ function PracticePage() {
   const { user } = useAuth();
   const [kind, setKind] = useState<Kind>("mcq");
   const [count, setCount] = useState(5);
+  const [difficulty, setDifficulty] = useState<Difficulty>("mixed");
+  const [scope, setScope] = useState<Scope>("all");
   const [source, setSource] = useState("");
-  const [noteId, setNoteId] = useState<string | undefined>();
+  const [noteIds, setNoteIds] = useState<string[]>([]);
+  const [courseFilter, setCourseFilter] = useState<string>("all");
   const [busy, setBusy] = useState(false);
   const [questions, setQuestions] = useState<Q[]>([]);
   const [attempts, setAttempts] = useState<Record<number, Attempt>>({});
@@ -61,17 +64,123 @@ function PracticePage() {
     queryKey: ["notes-pick", user?.id],
     enabled: !!user,
     queryFn: async () =>
-      (await supabase
-        .from("notes")
-        .select("id, title, description, content, editable_content, is_edited")).data ?? [],
+      (
+        await supabase
+          .from("notes")
+          .select(
+            "id, title, description, content, editable_content, is_edited, course_id, file_type, created_at",
+          )
+          .order("created_at", { ascending: false })
+      ).data ?? [],
+  });
+
+  const { data: courses = [] } = useQuery({
+    queryKey: ["courses-pick", user?.id],
+    enabled: !!user,
+    queryFn: async () =>
+      (await supabase.from("courses").select("id, name, code").order("name")).data ?? [],
   });
 
   const stripHTML = (s: string) => {
     if (!s) return "";
-    if (typeof window === "undefined") return s.replace(/<[^>]+>/g, " ");
+    if (typeof window === "undefined")
+      return s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     const div = document.createElement("div");
     div.innerHTML = s;
     return (div.textContent || div.innerText || "").trim();
+  };
+
+  const bodyFor = (n: any): string => {
+    const edited = (n?.editable_content || "").trim();
+    if (edited) return stripHTML(edited);
+    return (n?.content || "").trim();
+  };
+
+  const selectedNotes = useMemo(
+    () => (notes as any[]).filter((n) => noteIds.includes(n.id)),
+    [notes, noteIds],
+  );
+
+  const scopedNotes = useMemo(() => {
+    if (scope === "latest") {
+      return [...selectedNotes]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+        )
+        .slice(0, Math.max(1, Math.ceil(selectedNotes.length / 2)));
+    }
+    return selectedNotes;
+  }, [selectedNotes, scope]);
+
+  const totalWords = useMemo(
+    () =>
+      scopedNotes.reduce((sum, n) => {
+        const t = bodyFor(n);
+        return sum + (t ? t.split(/\s+/).filter(Boolean).length : 0);
+      }, 0),
+    [scopedNotes],
+  );
+
+  const courseById = useMemo(() => {
+    const m = new Map<string, any>();
+    (courses as any[]).forEach((c) => m.set(c.id, c));
+    return m;
+  }, [courses]);
+
+  /**
+   * Build a combined study prompt from selected notes. Balances character
+   * budget across notes so no single huge file dominates, tags each section
+   * with its course, and optionally keeps only paragraphs whose key terms
+   * appear in multiple notes ("repeated concepts" scope).
+   */
+  const buildMaterial = (): { material: string; emptyNotes: any[] } => {
+    const MAX_CHARS = 22000;
+    const emptyNotes: any[] = [];
+    const sections: { header: string; body: string }[] = [];
+
+    for (const n of scopedNotes) {
+      const body = bodyFor(n);
+      if (!body) {
+        emptyNotes.push(n);
+        continue;
+      }
+      const cname = n.course_id ? courseById.get(n.course_id)?.name ?? "" : "";
+      const header = `### ${n.title}${cname ? ` (${cname})` : ""}`;
+      sections.push({ header, body });
+    }
+
+    if (!sections.length) return { material: "", emptyNotes };
+
+    const perSection = Math.floor(MAX_CHARS / sections.length);
+    let combined = sections
+      .map(({ header, body }) => `${header}\n${body.slice(0, perSection)}`)
+      .join("\n\n---\n\n");
+
+    if (scope === "repeated" && sections.length > 1) {
+      const paras = combined.split(/\n{2,}/);
+      const wordCounts = new Map<string, Set<number>>();
+      paras.forEach((p, i) => {
+        const words = p.toLowerCase().match(/[a-z]{5,}/g) ?? [];
+        new Set(words).forEach((w) => {
+          if (!wordCounts.has(w)) wordCounts.set(w, new Set());
+          wordCounts.get(w)!.add(i);
+        });
+      });
+      const shared = new Set(
+        Array.from(wordCounts.entries())
+          .filter(([, set]) => set.size >= 2)
+          .map(([w]) => w),
+      );
+      const kept = paras.filter((p) => {
+        const words = p.toLowerCase().match(/[a-z]{5,}/g) ?? [];
+        return words.some((w) => shared.has(w));
+      });
+      if (kept.length) combined = kept.join("\n\n");
+    }
+
+    if (source.trim()) combined += `\n\n### Extra material\n${source.trim()}`;
+    return { material: combined.slice(0, MAX_CHARS), emptyNotes };
   };
 
   const aiCall = async (body: any) => {
@@ -107,34 +216,44 @@ function PracticePage() {
     setFinished(false);
     try {
       let material = "";
-      if (noteId) {
-        const n = (notes as any[]).find((x) => x.id === noteId);
-        if (n) {
-          // Prefer the student's edited version; fall back to the originally
-          // extracted text. AI questions should reflect their latest notes.
-          const editedRaw = (n.editable_content || "").trim();
-          const edited = editedRaw ? stripHTML(editedRaw) : "";
-          const body = (edited || (n.content || "")).trim();
-          if (!body) {
-            toast.error(
-              "This note has no extracted text. Re-upload the file or paste content into the topic box.",
-            );
-            setBusy(false);
-            return;
-          }
-          material = `${n.title}\n\n${n.description ?? ""}\n\n${body}`;
+      let emptyNotes: any[] = [];
+      if (scopedNotes.length) {
+        const built = buildMaterial();
+        material = built.material;
+        emptyNotes = built.emptyNotes;
+        if (emptyNotes.length) {
+          toast.warning(
+            `${emptyNotes.length} note(s) had no extracted text and were skipped.`,
+          );
         }
+        if (!material.trim() && !source.trim()) {
+          toast.error(
+            "None of the selected notes have extracted text. Open a note and edit its content, or paste material below.",
+          );
+          setBusy(false);
+          return;
+        }
+      } else if (source.trim()) {
+        material = source.trim();
       }
-      if (source.trim()) material += `\n\n${source.trim()}`;
+
       if (!material.trim()) {
-        toast.error("Add some study material or select a note.");
+        toast.error("Select at least one note or paste study material.");
         setBusy(false);
         return;
       }
-      const data = await aiCall({ mode: "practice", source: material, kind, count: cappedCount });
+
+      const noteTitles = scopedNotes.map((n) => n.title);
+      const data = await aiCall({
+        mode: "practice",
+        source: material,
+        kind,
+        count: cappedCount,
+        difficulty,
+        noteTitles,
+      });
       if (data.questions?.length) {
         setQuestions(data.questions);
-        // Log usage (count of generated questions)
         await supabase.from("practice_events").insert({
           user_id: user!.id,
           kind,
@@ -187,13 +306,32 @@ function PracticePage() {
           title="Practice Generator"
           subtitle={
             isUnlimited(kindLimit)
-              ? "Turn your notes into an interactive practice session."
+              ? "Combine notes from any course into a focused practice session."
               : `Free plan: ${kindUsed}/${kindLimit} ${kind} questions used this month.`
           }
         />
         <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} reason={upgradeReason} />
-        <Card className="p-6">
-          <div className="grid md:grid-cols-3 gap-4">
+        <Card className="p-6 space-y-5">
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <NotePicker
+              notes={notes as any[]}
+              courses={courses as any[]}
+              selectedIds={noteIds}
+              onChange={setNoteIds}
+              courseFilter={courseFilter}
+              onCourseFilterChange={setCourseFilter}
+            />
+            {scopedNotes.length > 0 && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                <FileText className="h-3 w-3" />
+                {scopedNotes.length} note{scopedNotes.length === 1 ? "" : "s"} loaded •{" "}
+                {totalWords.toLocaleString()} words
+              </p>
+            )}
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-4">
             <div className="space-y-1.5">
               <Label>Question type</Label>
               <Select value={kind} onValueChange={(v) => setKind(v as Kind)}>
@@ -215,7 +353,7 @@ function PracticePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[3, 5, 8, 10].map((n) => (
+                  {[3, 5, 8, 10, 15, 20].map((n) => (
                     <SelectItem key={n} value={String(n)}>
                       {n} questions
                     </SelectItem>
@@ -224,36 +362,48 @@ function PracticePage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Use a note (optional)</Label>
-              <Select value={noteId} onValueChange={setNoteId}>
+              <Label>Difficulty</Label>
+              <Select value={difficulty} onValueChange={(v) => setDifficulty(v as Difficulty)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="No note" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(notes as any[]).map((n) => (
-                    <SelectItem key={n.id} value={n.id}>
-                      {n.title}
-                      {n.is_edited ? " · edited" : ""}
-                      {!n.content && !n.editable_content ? " (no text)" : ""}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="easy">Easy</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="hard">Hard</SelectItem>
+                  <SelectItem value="mixed">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Scope</Label>
+              <Select value={scope} onValueChange={(v) => setScope(v as Scope)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All selected notes</SelectItem>
+                  <SelectItem value="latest">Latest uploads only</SelectItem>
+                  <SelectItem value="repeated">Repeated concepts</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <div className="mt-4 space-y-1.5">
-            <Label>Topic or paste material</Label>
+
+          <div className="space-y-1.5">
+            <Label>Extra topic or material (optional)</Label>
             <Textarea
-              rows={4}
+              rows={3}
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              placeholder="Optional: paste extra material or describe what to practice..."
+              placeholder="Paste extra material or describe what to focus on..."
             />
           </div>
+
           <Button
             onClick={generate}
             disabled={busy}
-            className="mt-4 bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-soft"
+            className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-soft"
           >
             {busy ? (
               <>
@@ -269,6 +419,7 @@ function PracticePage() {
       </div>
     );
   }
+
 
   // ---- Final summary ----
   if (finished) {
