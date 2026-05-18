@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,16 +11,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, CheckCircle2, XCircle, ArrowRight, RotateCcw, Trophy } from "lucide-react";
+import { Sparkles, Loader2, CheckCircle2, XCircle, ArrowRight, RotateCcw, Trophy, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/lib/use-subscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { isUnlimited, remaining } from "@/lib/plan";
+import { NotePicker } from "@/components/NotePicker";
 
 export const Route = createFileRoute("/_app/practice")({ component: PracticePage });
 
 type Kind = "mcq" | "short" | "long" | "fill_blank";
+type Difficulty = "easy" | "medium" | "hard" | "mixed";
+type Scope = "all" | "latest" | "repeated";
 type Q = { question: string; options?: string[]; answer: string; explanation?: string };
 type Result = {
   correct: boolean;
