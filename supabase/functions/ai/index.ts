@@ -18,19 +18,29 @@ Deno.serve(async (req) => {
     let payload: any;
 
     if (mode === "practice") {
-      const { source, kind, count } = body;
+      const { source, kind, count, difficulty, noteTitles } = body;
+      const diff = (difficulty || "mixed").toLowerCase();
+      const titles = Array.isArray(noteTitles) && noteTitles.length
+        ? `\n\nSOURCE NOTES (balance questions across these):\n- ${noteTitles.slice(0, 20).join("\n- ")}`
+        : "";
+      const diffLine =
+        diff === "mixed"
+          ? "Mix easy, medium, and hard questions evenly."
+          : `All questions should be ${diff} difficulty.`;
       const sys = `You are an expert university tutor. Read the STUDY MATERIAL provided by the student and generate ${count || 5} high-quality practice questions of type "${kind || "mcq"}" that test understanding of that material.
 
 STRICT RULES:
-- Base every question on the actual content of the study material provided. Do NOT invent topics or use only the file title.
-- If the material is too short or unclear, still produce questions grounded ONLY in what is given.
+- Base every question ONLY on the actual content of the study material below. Do NOT invent topics or rely on titles alone.
+- ${diffLine}
+- When multiple sections (### headings) are present, distribute questions across them so coverage is balanced.
+- Reference concrete concepts, terms, formulas, or examples from the material.
 - Return ONLY valid JSON. No prose, no markdown fences.
 
 JSON shape:
 {"questions":[{"question":"...","options":["A","B","C","D"],"answer":"A","explanation":"..."}]}
 
 For "mcq": include exactly 4 options. "answer" must be the letter A-D matching the correct option.
-For "short", "long", "fill_blank": omit "options". Put the model answer in "answer" and a brief "explanation".`;
+For "short", "long", "fill_blank": omit "options". Put the model answer in "answer" and a brief "explanation".${titles}`;
       payload = {
         model: "google/gemini-2.5-flash",
         messages: [
@@ -38,6 +48,7 @@ For "short", "long", "fill_blank": omit "options". Put the model answer in "answ
           { role: "user", content: `STUDY MATERIAL:\n\n${(source || "").slice(0, 24000)}` },
         ],
       };
+
     } else if (mode === "evaluate") {
       const { question, expected, studentAnswer, kind } = body;
       const sys = `You are a strict but fair university tutor grading a student's ${kind || "short"} answer. Compare the student's answer to the model answer and the question.
